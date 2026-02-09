@@ -1,6 +1,6 @@
 import { getHyperscalerConfiguration, SupportedHyperscalers, TotoMicroservice, TotoMicroserviceConfiguration } from 'totoms';
 import { ControllerConfig } from "./Config";
-import { SayHello } from './dlg/ExampleDelegate';
+import { PostPrompt } from './dlg/ExampleDelegate';
 
 const config: TotoMicroserviceConfiguration = {
     serviceName: "toto-ms-ex1",
@@ -12,7 +12,7 @@ const config: TotoMicroserviceConfiguration = {
     customConfiguration: ControllerConfig,
     apiConfiguration: {
         apiEndpoints: [
-            { method: 'GET', path: '/hello', delegate: SayHello }
+            { method: 'POST', path: '/prompt', delegate: PostPrompt }
         ],
         apiOptions: { noCorrelationId: true }
     }, 
