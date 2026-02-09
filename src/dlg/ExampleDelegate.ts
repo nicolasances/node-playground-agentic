@@ -1,9 +1,8 @@
 import { Request } from "express";
 import { Logger, TotoDelegate, UserContext } from "totoms";
-import { genkit, ToolAction, z } from "genkit";
+import { genkit, z } from "genkit";
 import { amazonNovaLiteV1, amazonNovaProV1, anthropicClaude37SonnetV1, awsBedrock } from "genkitx-aws-bedrock";
-import { createMcpClient, createMcpHost } from '@genkit-ai/mcp';
-import { McpStreamableHttpConfig } from "@genkit-ai/mcp/lib/client/client";
+import { createMcpHost } from '@genkit-ai/mcp';
 
 export class PostPrompt extends TotoDelegate {
 
@@ -48,7 +47,7 @@ export class PostPrompt extends TotoDelegate {
 
         await mcpHost.close();
 
-        return { response: response.output, usage: response.usage };
+        return { response: response.output, usage: response.usage, fullResponse: response };
 
     }
 
