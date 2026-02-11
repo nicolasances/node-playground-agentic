@@ -16,8 +16,8 @@ export class PostPrompt extends TotoDelegate {
         const mcpHost = createMcpHost({
             name: 'Toto MCP Host', // A unique name for this host instance
             mcpServers: {
-                tomeTopics: {
-                    url: 'http://localhost:8081/mcp', // URL of the MCP server
+                greetServer: {
+                    url: 'http://localhost:4100/tometopics/mcp', // URL of the MCP server
                     requestInit: {
                         headers: {
                             'Authorization': authHeader,
