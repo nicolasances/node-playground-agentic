@@ -24,7 +24,7 @@ export class TranscriptionGrounding extends TotoDelegate<GroundingRequest, Groun
         });
 
         const expectedOutputSchema = z.object({
-            items: z.array(z.string().describe("Name of the item in the grocery shopping list")).describe("List of items in the shopping list")
+            items: z.array(z.string().describe("Name of the item in the grocery shopping list. Only the name.")).describe("List of items in the shopping list")
         })
 
         const response = await ai.generate({
