@@ -1,6 +1,6 @@
 import { getHyperscalerConfiguration, SupportedHyperscalers, TotoMicroservice, TotoMicroserviceConfiguration } from 'totoms';
 import { ControllerConfig } from "./Config";
-import { PostPrompt } from './dlg/ExampleDelegate';
+import { AnswerWithMCPTools } from './dlg/AnswerWithMCPTools';
 
 const config: TotoMicroserviceConfiguration = {
     serviceName: "toto-ms-ex1",
@@ -12,7 +12,7 @@ const config: TotoMicroserviceConfiguration = {
     customConfiguration: ControllerConfig,
     apiConfiguration: {
         apiEndpoints: [
-            { method: 'POST', path: '/prompt', delegate: PostPrompt }
+            { method: 'POST', path: '/prompt/mcp', delegate: AnswerWithMCPTools }
         ],
         apiOptions: { noCorrelationId: true }
     }, 

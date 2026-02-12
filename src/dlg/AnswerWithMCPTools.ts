@@ -4,7 +4,7 @@ import { genkit, z } from "genkit";
 import { amazonNovaLiteV1, amazonNovaProV1, anthropicClaude37SonnetV1, awsBedrock } from "genkitx-aws-bedrock";
 import { createMcpHost } from '@genkit-ai/mcp';
 
-export class PostPrompt extends TotoDelegate {
+export class AnswerWithMCPTools extends TotoDelegate {
 
     async do(req: Request, userContext?: UserContext): Promise<any> {
         
