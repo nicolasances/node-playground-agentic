@@ -4,15 +4,13 @@ import { genkit, z } from "genkit";
 import { amazonNovaLiteV1, amazonNovaProV1, anthropicClaude37SonnetV1, awsBedrock } from "genkitx-aws-bedrock";
 import { createMcpHost } from '@genkit-ai/mcp';
 
-export class AnswerWithMCPTools extends TotoDelegate {
+export class AnswerWithMCPTools extends TotoDelegate<AnswerWithMCPToolsRequest, AnswerWithMCPToolsResponse> {
 
-    async do(req: Request, userContext?: UserContext): Promise<any> {
+    async do(req: AnswerWithMCPToolsRequest, userContext?: UserContext): Promise<AnswerWithMCPToolsResponse> {
         
         const logger = Logger.getInstance()
 
         // Extract the token from the request (adjust based on your auth setup)
-        const authHeader = req.headers.authorization || req.headers.Authorization;
-
         const mcpHost = createMcpHost({
             name: 'Toto MCP Host', // A unique name for this host instance
             mcpServers: {
@@ -20,7 +18,7 @@ export class AnswerWithMCPTools extends TotoDelegate {
                     url: 'http://localhost:9000/tometopics/mcp', // URL of the MCP server
                     requestInit: {
                         headers: {
-                            'Authorization': authHeader,
+                            'Authorization': req.userToken,
                             'Content-Type': 'application/json',
                         }
                     }
@@ -32,7 +30,7 @@ export class AnswerWithMCPTools extends TotoDelegate {
             plugins: [
                 awsBedrock({ region: "eu-north-1" }),
             ],
-            model: getModel(req.body.model || "amazon.nova-pro", "eu"),
+            model: getModel(req.model, "eu"),
         });
 
         const expectedOutputSchema = z.object({
@@ -40,7 +38,7 @@ export class AnswerWithMCPTools extends TotoDelegate {
         });
 
         const response = await ai.generate({ 
-            prompt: req.body.prompt, 
+            prompt: req.prompt, 
             tools: await mcpHost.getActiveTools(ai),
             output: { schema: expectedOutputSchema } 
         });
@@ -50,7 +48,28 @@ export class AnswerWithMCPTools extends TotoDelegate {
         return { response: response.output, usage: response.usage, fullResponse: response };
 
     }
+    
+    parseRequest(req: Request): AnswerWithMCPToolsRequest {
 
+        return {
+            userToken: String(req.headers.authorization || req.headers.Authorization), 
+            model: req.body.model || "amazon.nova-pro",
+            prompt: req.body.prompt
+        }
+    }
+
+}
+
+interface AnswerWithMCPToolsRequest {
+    userToken: string; 
+    model: string; 
+    prompt: string;
+}
+
+interface AnswerWithMCPToolsResponse {
+    response: { answer: string; } | null; 
+    usage: any; 
+    fullResponse: any;
 }
 
 function getModel(modeId: string, region: string) {
