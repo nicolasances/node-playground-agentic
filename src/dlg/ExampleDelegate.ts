@@ -17,7 +17,7 @@ export class PostPrompt extends TotoDelegate {
             name: 'Toto MCP Host', // A unique name for this host instance
             mcpServers: {
                 greetServer: {
-                    url: 'http://localhost:4100/tometopics/mcp', // URL of the MCP server
+                    url: 'http://localhost:9000/tometopics/mcp', // URL of the MCP server
                     requestInit: {
                         headers: {
                             'Authorization': authHeader,
