@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "npx nodemon",
     "build": "rm -rf ./build && tsc",
-    "start": "node build/index.js"
+    "start": "node build/index.js",
+    "agentic-loop": "ts-node src/agenticLoop/main.ts"
   },
   "author": "nicolasances",
   "license": "ISC",
