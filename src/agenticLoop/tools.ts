@@ -20,6 +20,13 @@ const toolRegistry: Record<ToolName, ToolDefinition> = {
         schema: z.object({}),
         run: async () => new Date().toISOString(),
     },
+    getSupermarketListItems: {
+        description: "Returns the list of items in the supermarket shopping list.", 
+        schema: z.object({}), 
+        run: async () => {
+            return JSON.stringify(["Bread C", "Butter", "Leverpostej", "Bacon", "Eggs", "Greek Yogurt"])
+        }
+    }, 
 };
 
 export function describeAvailableTools(): string {

@@ -1,6 +1,6 @@
 import { z } from "genkit";
 
-export const ToolNameSchema = z.enum(["echo", "getCurrentDate"]);
+export const ToolNameSchema = z.enum(["echo", "getCurrentDate", "getSupermarketListItems"]);
 export type ToolName = z.infer<typeof ToolNameSchema>;
 
 export const AgentActionSchema = z.object({
