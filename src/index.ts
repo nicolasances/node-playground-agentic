@@ -2,10 +2,11 @@ import { getHyperscalerConfiguration, SupportedHyperscalers, TotoMicroservice, T
 import { ControllerConfig } from "./Config";
 import { AnswerWithMCPTools } from './dlg/AnswerWithMCPTools';
 import { TranscriptionGrounding } from './dlg/TranscriptionGrounding';
+import { SuppieAgentLoop } from './dlg/SuppieAgentLoop';
 
 const config: TotoMicroserviceConfiguration = {
-    serviceName: "toto-ms-ex1",
-    basePath: '/ex1',
+    serviceName: "playground",
+    basePath: '/playground',
     environment: {
         hyperscaler: process.env.HYPERSCALER as SupportedHyperscalers || "aws",
         hyperscalerConfiguration: getHyperscalerConfiguration()
@@ -14,7 +15,8 @@ const config: TotoMicroserviceConfiguration = {
     apiConfiguration: {
         apiEndpoints: [
             { method: 'POST', path: '/prompt/mcp', delegate: AnswerWithMCPTools },
-            { method: 'POST', path: '/prompt/transcriptGrounding', delegate: TranscriptionGrounding}
+            { method: 'POST', path: '/prompt/transcriptGrounding', delegate: TranscriptionGrounding}, 
+            { method: 'POST', path: '/agent/messages', delegate: SuppieAgentLoop}
         ],
         apiOptions: { noCorrelationId: true }
     }, 
