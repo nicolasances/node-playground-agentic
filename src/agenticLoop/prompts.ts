@@ -35,11 +35,8 @@ export async function planNextAction(ai: Genkit, state: AgentLoopState): Promise
     return response.output;
 }
 
-export async function criticDecision(
-    ai: Genkit,
-    state: AgentLoopState,
-    lastStepSummary: string,
-): Promise<CriticDecision> {
+export async function criticDecision(ai: Genkit, state: AgentLoopState, lastStepSummary: string): Promise<CriticDecision> {
+    
     const response = await ai.generate({
         system: `
             You are a strict reviewer in an agentic loop.

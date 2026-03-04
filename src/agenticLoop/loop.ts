@@ -24,6 +24,7 @@ export interface RunLoopInput {
  * a final answer. If max attempts is hit first, it returns a timeout-style summary.
  */
 export async function runAgenticLoop(ai: Genkit, input: RunLoopInput): Promise<AgentLoopResult> {
+    
     const state: AgentLoopState = {
         goal: input.goal,
         context: input.context ?? [],
