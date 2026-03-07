@@ -10,13 +10,16 @@ export async function planNextAction(ai: Genkit, state: AgentLoopState): Promise
         system: `
             You are a planning component in an agentic loop.
             Choose exactly one next action.
+            
             Use only tools listed in AVAILABLE_TOOLS.
-            When choosing action='tool', you MUST set toolInput to a JSON object containing ALL required parameters
-            for that tool, extracting their values from the GOAL, context, and prior OBSERVATIONS.
             The AVAILABLE_TOOLS section shows the exact keys and types required in toolInput for each tool.
-            For example, if a tool requires toolInput: {"location": "<string>"}, you must output toolInput: {"location": "the actual value"}.
-            Never leave toolInput empty or omit required fields.
+            
+            When choosing action='tool', you MUST set toolInput to a JSON object containing ALL required parameters
+            for that tool, extracting their values from either the GOAL, context, or prior OBSERVATIONS.
+            NEVER leave toolInput empty or omit required fields or use "__undefined__".
+
             If enough information is available, choose action='finish'.
+
             If the goal requires information that no available tool can supply and the user has not provided it,
             choose action='clarify' and set clarifyQuestion to a concise question that will get the missing information.
             Do NOT call unrelated tools when critical information is missing — ask the user instead.

@@ -66,13 +66,13 @@ export async function runAgenticLoop(ai: Genkit, input: RunLoopInput): Promise<A
         if (action.action === "finish") {
             const finalAnswer = action.draftAnswer ?? "Loop finished without a draft answer.";
             state.finalAnswer = finalAnswer;
-            return { done: true, finalAnswer, state };
+            return { done: true, finalAnswer, state, attempts: state.attempts };
         }
 
         if (action.action === "clarify") {
             const clarifyQuestion = action.clarifyQuestion ?? "Could you please provide more information?"
             state.finalAnswer = clarifyQuestion;
-            return { done: false, finalAnswer: clarifyQuestion, state, clarifyQuestion };
+            return { done: false, finalAnswer: clarifyQuestion, state, clarifyQuestion, attempts: state.attempts };
         }
 
         if (!action.toolName) {
@@ -130,7 +130,7 @@ export async function runAgenticLoop(ai: Genkit, input: RunLoopInput): Promise<A
         if (review.done) {
             const finalAnswer = review.finalAnswer ?? "Goal marked as completed by critic.";
             state.finalAnswer = finalAnswer;
-            return { done: true, finalAnswer, state };
+            return { done: true, finalAnswer, state, attempts: state.attempts };
         }
     }
 
@@ -144,5 +144,6 @@ export async function runAgenticLoop(ai: Genkit, input: RunLoopInput): Promise<A
         done: false,
         finalAnswer: timeoutAnswer,
         state,
+        attempts: state.attempts,
     };
 }

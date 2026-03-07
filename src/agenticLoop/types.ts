@@ -111,4 +111,5 @@ export interface AgentLoopResult {
     finalAnswer: string;
     state: AgentLoopState;
     clarifyQuestion?: string;
+    attempts: number;
 }
