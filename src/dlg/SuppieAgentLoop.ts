@@ -27,7 +27,8 @@ export class SuppieAgentLoop extends TotoDelegate<SuppieAgentLoopInput, SuppieAg
         console.log(JSON.stringify(result.state, null, 2));
         
         return {
-            answer: result.finalAnswer
+            answer: result.finalAnswer, 
+            iterations: result.attempts,
         }
     }
 
@@ -45,4 +46,5 @@ interface SuppieAgentLoopInput {
 }
 interface SuppieAgentLoopOutput {
     answer: string
+    iterations: number;
 }
