@@ -7,7 +7,8 @@
     "dev": "npx nodemon",
     "build": "rm -rf ./build && tsc",
     "start": "node build/index.js",
-    "agentic-loop": "ts-node src/agenticLoop/main.ts"
+    "agentic-loop": "ts-node src/agenticLoop/main.ts",
+    "agentic-loop-genkit-tools": "ts-node src/agenticLoopWithGenkitTools/main.ts"
   },
   "author": "nicolasances",
   "license": "ISC",
