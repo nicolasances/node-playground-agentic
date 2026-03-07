@@ -23,8 +23,6 @@ export class SuppieAgentLoop extends TotoDelegate<SuppieAgentLoopInput, SuppieAg
 
         console.log("\n=== AGENTIC LOOP RESULT ===");
         console.log(result.finalAnswer);
-        console.log("\n=== TRACE ===");
-        console.log(JSON.stringify(result.state, null, 2));
         
         return {
             answer: result.finalAnswer, 
