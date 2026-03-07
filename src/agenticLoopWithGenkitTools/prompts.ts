@@ -1,4 +1,4 @@
-import { Genkit, z } from "genkit";
+import { Genkit } from "genkit";
 import {
     AgentLoopState,
     GoalCriticDecision,
@@ -19,28 +19,57 @@ function serializePlan(plan: PlanItem[]): string {
         .join(" | ");
 }
 
-const PlanItemActionRouteSchema = z.object({
-    action: z.enum(["act", "finish", "clarify"]),
-    reasoning: z.string(),
-    draftAnswer: z.string().nullable().optional(),
-    clarifyQuestion: z.string().nullable().optional(),
-}).superRefine((value, ctx) => {
-    if (value.action === "finish" && !value.draftAnswer) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["draftAnswer"],
-            message: "draftAnswer is required when action='finish'.",
-        });
+function normalizeActDecisionFromText(text: string): PlanItemActDecision {
+    const trimmed = text.trim();
+
+    const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        try {
+            const parsed = JSON.parse(jsonMatch[0]) as Partial<PlanItemActDecision>;
+            const action = parsed.action;
+
+            if (action === "finish") {
+                return {
+                    action: "finish",
+                    reasoning: parsed.reasoning ?? "Model chose finish.",
+                    draftAnswer: parsed.draftAnswer ?? trimmed,
+                    actSummary: null,
+                    clarifyQuestion: null,
+                };
+            }
+
+            if (action === "clarify") {
+                return {
+                    action: "clarify",
+                    reasoning: parsed.reasoning ?? "Model requested clarification.",
+                    clarifyQuestion: parsed.clarifyQuestion ?? "Could you clarify the missing information?",
+                    actSummary: null,
+                    draftAnswer: null,
+                };
+            }
+
+            if (action === "act") {
+                return {
+                    action: "act",
+                    reasoning: parsed.reasoning ?? "Model performed an action.",
+                    actSummary: parsed.actSummary ?? trimmed,
+                    draftAnswer: null,
+                    clarifyQuestion: null,
+                };
+            }
+        } catch {
+            // Fall back below.
+        }
     }
 
-    if (value.action === "clarify" && !value.clarifyQuestion) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["clarifyQuestion"],
-            message: "clarifyQuestion is required when action='clarify'.",
-        });
-    }
-});
+    return {
+        action: "act",
+        reasoning: "Model acted but returned non-JSON decision text.",
+        actSummary: trimmed || "Action attempted with no textual summary.",
+        draftAnswer: null,
+        clarifyQuestion: null,
+    };
+}
 
 export async function createPlan(
     ai: Genkit,
@@ -50,8 +79,11 @@ export async function createPlan(
     const response = await ai.generate({
         system: `
             You are the planning component in an agentic loop.
-            Build a concise, actionable plan to solve the user's goal.
-            Use available tools only as capabilities awareness (name+description).
+            Build a concise, actionable plan to solve the user's goal. 
+            Take as few steps as possible. 
+            Regarding tools: 
+                - If you have the knowledge to complete the goal without tools, do not use them.
+                - If you need to use tools, break down the plan into steps that use them effectively.
             Do not execute tools in this step.
         `,
         prompt: `
@@ -88,90 +120,44 @@ export async function actOnPlanItem(
     maxItemAttempts: number
 ): Promise<PlanItemActDecision> {
 
-    const routeResponse = await ai.generate({
-        system: `
-            You are a routing component for one plan item in an agentic loop.
-            Choose exactly one action among: act, finish, clarify.
-
-            - act: work is needed on this plan item.
-            - finish: no more work needed; provide final direct answer to the user goal.
-            - clarify: ask a concise question if critical user information is missing.
-        `,
-        prompt: `
-            USER_GOAL: ${state.goal}
-
-            CURRENT_PLAN_ITEM: #${item.id} ${item.title} - ${item.description}
-
-            ITEM_ATTEMPT: ${itemAttempt}/${maxItemAttempts}
-
-            FULL_PLAN: ${serializePlan(state.plan)}
-
-            OBSERVATIONS: ${state.observations.join(" | ") || "<none>"}
-
-            AVAILABLE_TOOLS:
-            ${describeToolNamesAndDescriptions()}
-        `,
-        output: { schema: PlanItemActionRouteSchema },
-    });
-
-    if (!routeResponse.output) {
-        throw new Error("Act route step returned no structured output.");
-    }
-
-    const route = routeResponse.output;
-
-    if (route.action === "finish") {
-        return {
-            action: "finish",
-            reasoning: route.reasoning,
-            draftAnswer: route.draftAnswer,
-            actSummary: null,
-            clarifyQuestion: null,
-        };
-    }
-
-    if (route.action === "clarify") {
-        return {
-            action: "clarify",
-            reasoning: route.reasoning,
-            clarifyQuestion: route.clarifyQuestion,
-            actSummary: null,
-            draftAnswer: null,
-        };
-    }
-
-    const actResponse = await ai.generate({
+    const response = await ai.generate({
         system: `
             You are the acting component for one plan item in an agentic loop.
-            Perform work to complete the plan item, using native tools when useful.
-            Return a concise action summary including key tool results.
+            Choose exactly one action among: act, finish, clarify.
+
+            - act: do work now, using native tools if useful (only if you need them); provide actSummary.
+            - finish: no more work needed; provide final direct answer in draftAnswer.
+            - clarify: ask a concise question in clarifyQuestion if critical user information is missing.
+
             Never invent tool outputs.
+                        Your final response MUST be ONLY a JSON object with this exact shape:
+                        {
+                            "action": "act" | "finish" | "clarify",
+                            "reasoning": "string",
+                            "actSummary": "string|null",
+                            "draftAnswer": "string|null",
+                            "clarifyQuestion": "string|null"
+                        }
         `,
         prompt: `
             USER_GOAL: ${state.goal}
-
-            CURRENT_PLAN_ITEM: #${item.id} ${item.title} - ${item.description}
 
             ITEM_ATTEMPT: ${itemAttempt}/${maxItemAttempts}
 
             FULL_PLAN: ${serializePlan(state.plan)}
 
+            CURRENT_PLAN_ITEM: #${item.id} ${item.title} - ${item.description}
+
             OBSERVATIONS: ${state.observations.join(" | ") || "<none>"}
 
-            Provide only the action summary text.
+            Return only JSON. No markdown, no prose before/after.
         `,
         tools: createNativeTools(ai),
     });
 
-    const actSummary = actResponse.text?.trim() || "Action attempted with no textual summary.";
+    const text = response.text ?? "";
 
-    return {
-        action: "act",
-        reasoning: route.reasoning,
-        actSummary,
-        draftAnswer: null,
-        clarifyQuestion: null,
-    };
+    return normalizeActDecisionFromText(text);
 }
 
 export async function criticPlanItemCompletion(

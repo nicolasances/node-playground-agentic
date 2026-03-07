@@ -48,7 +48,10 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
         console.log(`----------------------------------------------`);
         console.log(`Goal iteration #${state.goalIteration + 1}...`);
         console.log(`Planning ...`);
-        console.log(`Plan created with ${state.plan.length} items.`);
+        console.log(`Plan created: `);
+        state.plan.forEach((item) => {
+            console.log(`  #${item.id} ${item.title} - ${item.description}`);
+        });
         console.log(`----------------------------------------------`);
 
         let lastStepSummary = `Plan created with ${state.plan.length} items.`;
