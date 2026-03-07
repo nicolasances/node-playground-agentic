@@ -39,6 +39,10 @@ export function describeToolNamesAndDescriptions(): string {
         .join("\n");
 }
 
+export function getAvailableToolNames(): string[] {
+    return Object.keys(toolMetadata);
+}
+
 export function createNativeTools(ai: Genkit): ToolAction[] {
     const cached = nativeToolsCache.get(ai);
     if (cached) {

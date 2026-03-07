@@ -6,11 +6,10 @@ import {
     PlanCreation,
     PlanCreationSchema,
     PlanItem,
-    PlanItemActDecision,
     PlanItemCriticDecision,
     PlanItemCriticDecisionSchema,
 } from "./types";
-import { createNativeTools, describeToolNamesAndDescriptions } from "./tools";
+import { createNativeTools, describeToolNamesAndDescriptions, getAvailableToolNames } from "./tools";
 
 function serializePlan(plan: PlanItem[]): string {
     if (plan.length === 0) return "<none>";
@@ -19,62 +18,24 @@ function serializePlan(plan: PlanItem[]): string {
         .join(" | ");
 }
 
-function normalizeActDecisionFromText(text: string): PlanItemActDecision {
-    const trimmed = text.trim();
+function planHasImpossibleExternalDependencies(plan: PlanCreation, availableToolNames: string[]): boolean {
+    const text = plan.items
+        .map((item) => `${item.title} ${item.description}`)
+        .join(" ")
+        .toLowerCase();
 
-    const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-        try {
-            const parsed = JSON.parse(jsonMatch[0]) as Partial<PlanItemActDecision>;
-            const action = parsed.action;
+    const mentionsExternalDependency = /(internet|web\s*search|browse|browser|google|wikipedia|external\s+source|research\s+source|search\s+online|online\s+search)/i.test(text);
+    const hasSearchLikeTool = availableToolNames.some((name) => /(search|browse|web|internet|retriev)/i.test(name));
 
-            if (action === "finish") {
-                return {
-                    action: "finish",
-                    reasoning: parsed.reasoning ?? "Model chose finish.",
-                    draftAnswer: parsed.draftAnswer ?? trimmed,
-                    actSummary: null,
-                    clarifyQuestion: null,
-                };
-            }
-
-            if (action === "clarify") {
-                return {
-                    action: "clarify",
-                    reasoning: parsed.reasoning ?? "Model requested clarification.",
-                    clarifyQuestion: parsed.clarifyQuestion ?? "Could you clarify the missing information?",
-                    actSummary: null,
-                    draftAnswer: null,
-                };
-            }
-
-            if (action === "act") {
-                return {
-                    action: "act",
-                    reasoning: parsed.reasoning ?? "Model performed an action.",
-                    actSummary: parsed.actSummary ?? trimmed,
-                    draftAnswer: null,
-                    clarifyQuestion: null,
-                };
-            }
-        } catch {
-            // Fall back below.
-        }
-    }
-
-    return {
-        action: "act",
-        reasoning: "Model acted but returned non-JSON decision text.",
-        actSummary: trimmed || "Action attempted with no textual summary.",
-        draftAnswer: null,
-        clarifyQuestion: null,
-    };
+    return mentionsExternalDependency && !hasSearchLikeTool;
 }
 
 export async function createPlan(
     ai: Genkit,
     state: AgentLoopState
 ): Promise<PlanCreation> {
+
+    const availableToolNames = getAvailableToolNames();
 
     const response = await ai.generate({
         system: `
@@ -83,7 +44,8 @@ export async function createPlan(
             Take as few steps as possible. 
             Regarding tools: 
                 - If you have the knowledge to complete the goal without tools, do not use them.
-                - If you need to use tools, break down the plan into steps that use them effectively.
+                - If you need to use tools, break down the plan into steps that use them effectively. DO NOT INVENT TOOLS. Only use the tools provided.
+                - Do NOT create steps that require internet browsing, web search, or external sources unless a matching tool exists.
             Do not execute tools in this step.
         `,
         prompt: `
@@ -109,55 +71,71 @@ export async function createPlan(
         throw new Error("Planner returned no structured output.");
     }
 
-    return response.output;
+    if (!planHasImpossibleExternalDependencies(response.output, availableToolNames)) {
+        return response.output;
+    }
+
+    const fallbackResponse = await ai.generate({
+        system: `
+            You are the planning component in an agentic loop.
+            Rewrite the plan to be fully feasible with available tools and model-internal knowledge only.
+            Remove any dependency on internet browsing, web search, or external sources if no such tool exists.
+            Keep the plan concise and actionable with 1-8 steps.
+        `,
+        prompt: `
+            GOAL: ${state.goal}
+
+            CURRENT_PLAN:
+            ${JSON.stringify(response.output.items)}
+
+            AVAILABLE_TOOLS:
+            ${describeToolNamesAndDescriptions()}
+
+            AVAILABLE_TOOL_NAMES:
+            ${availableToolNames.join(", ") || "<none>"}
+
+            Return a corrected structured plan.
+        `,
+        output: { schema: PlanCreationSchema },
+    });
+
+    if (!fallbackResponse.output) {
+        return response.output;
+    }
+
+    return fallbackResponse.output;
 }
 
 export async function actOnPlanItem(
     ai: Genkit,
-    state: AgentLoopState,
     item: PlanItem,
-    itemAttempt: number,
-    maxItemAttempts: number
-): Promise<PlanItemActDecision> {
+    criticObservationsForItem: string[]
+): Promise<string> {
 
     const response = await ai.generate({
         system: `
             You are the acting component for one plan item in an agentic loop.
-            Choose exactly one action among: act, finish, clarify.
+            Your only task is to execute the provided plan item instruction.
+            Use native tools only when needed.
 
-            - act: do work now, using native tools if useful (only if you need them); provide actSummary.
-            - finish: no more work needed; provide final direct answer in draftAnswer.
-            - clarify: ask a concise question in clarifyQuestion if critical user information is missing.
+            Important behavior:
+            - Prefer your own model knowledge/capabilities when sufficient.
+            - Do NOT claim failure just because a tool is missing or not used.
+            - Only report inability if the instruction truly requires unavailable external/private/realtime data.
+            - If the item is writing/summarizing/explaining, produce the content directly.
 
             Never invent tool outputs.
-                        Your final response MUST be ONLY a JSON object with this exact shape:
-                        {
-                            "action": "act" | "finish" | "clarify",
-                            "reasoning": "string",
-                            "actSummary": "string|null",
-                            "draftAnswer": "string|null",
-                            "clarifyQuestion": "string|null"
-                        }
+            Return only the action result summary as plain text.
         `,
         prompt: `
-            USER_GOAL: ${state.goal}
+            PLAN_ITEM_INSTRUCTION: #${item.id} ${item.title} - ${item.description}
 
-            ITEM_ATTEMPT: ${itemAttempt}/${maxItemAttempts}
-
-            FULL_PLAN: ${serializePlan(state.plan)}
-
-            CURRENT_PLAN_ITEM: #${item.id} ${item.title} - ${item.description}
-
-            OBSERVATIONS: ${state.observations.join(" | ") || "<none>"}
-
-            Return only JSON. No markdown, no prose before/after.
+            CRITIC_OBSERVATIONS_FOR_THIS_ITEM: ${criticObservationsForItem.join(" | ") || "<none>"}
         `,
         tools: createNativeTools(ai),
     });
 
-    const text = response.text ?? "";
-
-    return normalizeActDecisionFromText(text);
+    return response.text?.trim() || "Action attempted with no textual summary.";
 }
 
 export async function criticPlanItemCompletion(
@@ -171,16 +149,23 @@ export async function criticPlanItemCompletion(
         system: `
             You are a strict reviewer for a single plan item.
             Decide whether the current plan item is completed.
-            If not completed, provide a concrete correctionInstruction.
+
+            Review policy:
+            - Evaluate ONLY against the plan item instruction, not the whole user goal.
+            - Tool usage is optional; do not require tools if the item can be solved with model knowledge.
+            - Mark completed=true whenever the instruction is sufficiently satisfied.
+            - If not completed, provide a concrete correctionInstruction focused only on the missing part.
+            - Never ask for non-existing tools.
         `,
         prompt: `
-            USER_GOAL: ${state.goal}
-
             PLAN_ITEM: #${item.id} ${item.title} - ${item.description}
 
             LAST_ACT_SUMMARY: ${lastActSummary}
 
-            OBSERVATIONS: ${state.observations.join(" | ") || "<none>"}
+            ITEM_CRITIC_HISTORY: ${state.observations.filter((entry) => entry.includes(`item-critic #${item.id}`) || entry.includes(`item-feedback #${item.id}`)).join(" | ") || "<none>"}
+
+            AVAILABLE_TOOLS:
+            ${describeToolNamesAndDescriptions()}
         `,
         output: { schema: PlanItemCriticDecisionSchema },
     });

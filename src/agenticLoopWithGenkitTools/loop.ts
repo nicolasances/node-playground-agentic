@@ -43,8 +43,6 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
             completed: false,
         }));
 
-        state.observations.push(`planner: ${planResult.reasoning}`);
-
         console.log(`----------------------------------------------`);
         console.log(`Goal iteration #${state.goalIteration + 1}...`);
         console.log(`Planning ...`);
@@ -58,52 +56,31 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
 
         for (const item of state.plan) {
             let itemAttempt = 0;
+            const itemCriticObservations: string[] = [];
 
             while (!item.completed && itemAttempt < maxItemAttempts && state.attempts < state.maxAttempts) {
                 itemAttempt += 1;
 
-                const decision = await actOnPlanItem(ai, state, item, itemAttempt, maxItemAttempts);
+                const stepSummary = await actOnPlanItem(ai, item, itemCriticObservations);
 
                 console.log(`Acting on item #${item.id} ...`);
-                console.log(`${decision.action}: ${decision.reasoning}`);
+                console.log(`result: ${stepSummary}`);
 
-                if (decision.action === "clarify") {
-                    const clarifyQuestion = decision.clarifyQuestion ?? "Could you please provide more information?";
-                    state.finalAnswer = clarifyQuestion;
-                    return { done: false, finalAnswer: clarifyQuestion, state, clarifyQuestion, attempts: state.attempts };
-                }
-
-                if (decision.action === "finish") {
-                    const candidateAnswer = decision.draftAnswer ?? "Agent produced a finish decision without draft answer.";
-                    state.observations.push(`act-finish: ${candidateAnswer}`);
-                    lastStepSummary = candidateAnswer;
-
-                    const goalReviewFromFinish = await criticGoalCompletion(ai, state, lastStepSummary);
-                    state.observations.push(`goal-critic: ${goalReviewFromFinish.reasoning}`);
-
-                    if (goalReviewFromFinish.done) {
-                        const finalAnswer = goalReviewFromFinish.finalAnswer ?? candidateAnswer;
-                        state.finalAnswer = finalAnswer;
-                        return { done: true, finalAnswer, state, attempts: state.attempts };
-                    }
-
-                    break;
-                }
-
-                const stepSummary = decision.actSummary?.trim() || decision.reasoning;
-                state.observations.push(`act item #${item.id}: ${stepSummary}`);
                 state.attempts += 1;
                 lastStepSummary = stepSummary;
 
                 const itemReview = await criticPlanItemCompletion(ai, state, item, stepSummary);
-                state.observations.push(`item-critic #${item.id}: ${itemReview.reasoning}`);
+                const criticReasoning = itemReview.reasoning.trim();
+                itemCriticObservations.push(criticReasoning);
+                state.observations.push(`item-critic #${item.id}: ${criticReasoning}`);
 
                 if (itemReview.completed) {
                     item.completed = true;
-                    item.completionNotes = itemReview.reasoning;
+                    item.completionNotes = criticReasoning;
                     console.log(`Item #${item.id} completed.`);
                 } else {
-                    const feedback = itemReview.correctionInstruction?.trim() || itemReview.reasoning;
+                    const feedback = itemReview.correctionInstruction?.trim() || criticReasoning;
+                    itemCriticObservations.push(feedback);
                     state.observations.push(`item-feedback #${item.id}: ${feedback}`);
                     console.log(`Item #${item.id} not completed: ${feedback}`);
                 }
