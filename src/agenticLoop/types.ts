@@ -8,7 +8,7 @@ export function buildAgentActionSchema(
         action: z.enum(["tool", "finish", "clarify"]),
         reasoning: z.string().describe("Why this is the best next step."),
         toolName: z.enum(toolNames).optional(),
-        toolInput: z.record(z.unknown()).optional().describe("The input to the tool, as a JSON object. Must include all required fields for the selected tool."),
+        toolInput: z.record(z.unknown()).describe("The input to the tool, as a JSON object. Must include all required fields for the selected tool."),
         draftAnswer: z.string().optional(),
         clarifyQuestion: z.string().optional().describe("The question to ask the user when critical information is missing and no tool can supply it."),
     }).superRefine((value, ctx) => {
@@ -75,7 +75,7 @@ export interface AgentAction {
     action: "tool" | "finish" | "clarify";
     reasoning: string;
     toolName?: string;
-    toolInput?: Record<string, unknown>;
+    toolInput: Record<string, unknown>;
     draftAnswer?: string;
     clarifyQuestion?: string;
 }

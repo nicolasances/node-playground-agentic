@@ -10,7 +10,7 @@ type ToolDefinition = {
 const toolRegistry: Record<string, ToolDefinition> = {
     getWeather: {
        description: "Returns the current weather for a given location.",
-       schema: z.object({ location: z.string() }),
+       schema: z.object({ location: z.string().describe("The location to get the weather for, e.g. 'Copenhagen'. Mandatory") }),
        run: async (input) => {
            const location = input.location as string;
            // Mocked weather response
@@ -19,12 +19,12 @@ const toolRegistry: Record<string, ToolDefinition> = {
     }, 
     getCurrentDate: {
         description: "Returns the current UTC date/time in ISO format.",
-        schema: z.object({}),
+        schema: z.object({}).describe("Input schema for getCurrentDate tool"),
         run: async () => new Date().toISOString(),
     },
     getSupermarketListItems: {
         description: "Returns the list of items in the supermarket shopping list.", 
-        schema: z.object({}), 
+        schema: z.object({}).describe("Input schema for getSupermarketListItems tool"),
         run: async () => {
             return JSON.stringify(["Bread C", "Butter", "Leverpostej", "Bacon", "Eggs", "Greek Yogurt"])
         }
