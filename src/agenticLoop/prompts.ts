@@ -1,8 +1,10 @@
 import { Genkit } from "genkit";
-import { AgentAction, AgentActionSchema, AgentLoopState, CriticDecision, CriticDecisionSchema } from "./types";
-import { describeAvailableTools } from "./tools";
+import { AgentAction, buildAgentActionSchema, AgentLoopState, CriticDecision, CriticDecisionSchema } from "./types";
+import { describeAvailableTools, getToolNames } from "./tools";
 
 export async function planNextAction(ai: Genkit, state: AgentLoopState): Promise<AgentAction> {
+
+    const AgentActionSchema = buildAgentActionSchema(getToolNames());
 
     const response = await ai.generate({
         system: `
@@ -10,6 +12,9 @@ export async function planNextAction(ai: Genkit, state: AgentLoopState): Promise
             Choose exactly one next action.
             Use only tools listed in AVAILABLE_TOOLS.
             If enough information is available, choose action='finish'.
+            If the goal requires information that no available tool can supply and the user has not provided it,
+            choose action='clarify' and set clarifyQuestion to a concise question that will get the missing information.
+            Do NOT call unrelated tools when critical information is missing — ask the user instead.
         `,
         prompt: `
             GOAL: ${state.goal}

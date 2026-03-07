@@ -12,7 +12,7 @@ export class SuppieAgentLoop extends TotoDelegate<SuppieAgentLoopInput, SuppieAg
 
         const ai = genkit({
             plugins: [vertexAI()],
-            model: vertexAI.model('gemini-2.0-flash')
+            model: vertexAI.model('gemini-2.0-flash-lite')
             // plugins: [awsBedrock({ region: "eu-north-1" })],
             // model: "amazon.nova-pro",
         });

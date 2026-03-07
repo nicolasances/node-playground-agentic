@@ -48,6 +48,12 @@ export async function runAgenticLoop(ai: Genkit, input: RunLoopInput): Promise<A
             return { done: true, finalAnswer, state };
         }
 
+        if (action.action === "clarify") {
+            const clarifyQuestion = action.clarifyQuestion ?? "Could you please provide more information?"
+            state.finalAnswer = clarifyQuestion;
+            return { done: false, finalAnswer: clarifyQuestion, state, clarifyQuestion };
+        }
+
         if (!action.toolName) {
             throw new Error("Planner selected tool action without toolName.");
         }
@@ -55,7 +61,13 @@ export async function runAgenticLoop(ai: Genkit, input: RunLoopInput): Promise<A
         // 2. Act - use a tool
         const toolInput = action.toolInput ?? {};
 
-        const toolOutput = await executeTool(action.toolName, toolInput);
+        let toolOutput: string;
+        try {
+            toolOutput = await executeTool(action.toolName, toolInput);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            toolOutput = `ERROR: ${errorMessage}`;
+        }
 
         state.toolExecutions.push({
             toolName: action.toolName,
@@ -63,7 +75,7 @@ export async function runAgenticLoop(ai: Genkit, input: RunLoopInput): Promise<A
             output: toolOutput,
         });
 
-        // 3. Observe - read the tool result
+        // 3. Observe - read the tool result (including errors, so the agent can recover)
         const observation = `${action.toolName} -> ${toolOutput}`;
         
         state.observations.push(observation);

@@ -1,16 +1,24 @@
 import { z } from "genkit";
 
-export const ToolNameSchema = z.enum(["echo", "getCurrentDate", "getSupermarketListItems"]);
-export type ToolName = z.infer<typeof ToolNameSchema>;
+export function buildAgentActionSchema(toolNames: [string, ...string[]]) {
+    return z.object({
+        action: z.enum(["tool", "finish", "clarify"]),
+        reasoning: z.string().describe("Why this is the best next step."),
+        toolName: z.enum(toolNames).optional(),
+        toolInput: z.record(z.unknown()).optional(),
+        draftAnswer: z.string().optional(),
+        clarifyQuestion: z.string().optional().describe("The question to ask the user when critical information is missing and no tool can supply it."),
+    });
+}
 
-export const AgentActionSchema = z.object({
-    action: z.enum(["tool", "finish"]),
-    reasoning: z.string().describe("Why this is the best next step."),
-    toolName: ToolNameSchema.optional(),
-    toolInput: z.record(z.unknown()).optional(),
-    draftAnswer: z.string().optional(),
-});
-export type AgentAction = z.infer<typeof AgentActionSchema>;
+export interface AgentAction {
+    action: "tool" | "finish" | "clarify";
+    reasoning: string;
+    toolName?: string;
+    toolInput?: Record<string, unknown>;
+    draftAnswer?: string;
+    clarifyQuestion?: string;
+}
 
 export const CriticDecisionSchema = z.object({
     done: z.boolean(),
@@ -21,7 +29,7 @@ export const CriticDecisionSchema = z.object({
 export type CriticDecision = z.infer<typeof CriticDecisionSchema>;
 
 export interface ToolExecution {
-    toolName: ToolName;
+    toolName: string;
     input: Record<string, unknown>;
     output: string;
 }
@@ -41,4 +49,5 @@ export interface AgentLoopResult {
     done: boolean;
     finalAnswer: string;
     state: AgentLoopState;
+    clarifyQuestion?: string;
 }
