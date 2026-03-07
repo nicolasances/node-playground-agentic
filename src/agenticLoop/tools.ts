@@ -1,4 +1,5 @@
 import { z } from "genkit";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
 type ToolDefinition = {
     description: string;
@@ -30,34 +31,27 @@ const toolRegistry: Record<string, ToolDefinition> = {
     }, 
 };
 
-function zodTypeName(type: z.ZodTypeAny): string {
-    const name: string = type._def.typeName ?? "";
-    const map: Record<string, string> = {
-        ZodString: "string",
-        ZodNumber: "number",
-        ZodBoolean: "boolean",
-        ZodArray: "array",
-        ZodObject: "object",
-        ZodOptional: "optional",
-    };
-    return map[name] ?? name;
-}
-
 function describeSchema(schema: z.ZodObject<any>): string {
-    const shape = schema.shape as Record<string, z.ZodTypeAny>;
-    const fields = Object.entries(shape);
-    if (fields.length === 0) return "no input required";
-    return "input: { " + fields.map(([key, type]) => `${key}: ${zodTypeName(type)}`).join(", ") + " }";
+    const jsonSchema = (zodToJsonSchema as any)(schema, {
+        $refStrategy: "none",
+    });
+    return JSON.stringify(jsonSchema);
 }
 
 export function describeAvailableTools(): string {
     return Object.entries(toolRegistry)
-        .map(([name, def]) => `- ${name}: ${def.description} [${describeSchema(def.schema)}]`)
+        .map(([name, def]) => `- ${name}: ${def.description}\n  toolInput schema: ${describeSchema(def.schema)}`)
         .join("\n");
 }
 
 export function getToolNames(): [string, ...string[]] {
     return Object.keys(toolRegistry) as [string, ...string[]];
+}
+
+export function getToolInputSchemas(): Record<string, z.ZodObject<any>> {
+    return Object.fromEntries(
+        Object.entries(toolRegistry).map(([name, def]) => [name, def.schema])
+    ) as Record<string, z.ZodObject<any>>;
 }
 
 export async function executeTool(toolName: string, input: Record<string, unknown>): Promise<string> {
