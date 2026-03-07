@@ -3,6 +3,7 @@ import { genkit } from "genkit";
 import { TotoDelegate, UserContext } from "totoms";
 import { vertexAI } from "@genkit-ai/google-genai";
 import { runAgenticLoop } from "../agenticLoop/loop";
+import { runAgenticLoopWithGenkitTools } from "../agenticLoopWithGenkitTools/loop";
 
 export class SuppieAgentLoop extends TotoDelegate<SuppieAgentLoopInput, SuppieAgentLoopOutput> {
 
@@ -16,7 +17,7 @@ export class SuppieAgentLoop extends TotoDelegate<SuppieAgentLoopInput, SuppieAg
             // plugins: [awsBedrock({ region: "eu-north-1" })],
             // model: "amazon.nova-pro",
         });
-        const result = await runAgenticLoop(ai, {
+        const result = await runAgenticLoopWithGenkitTools(ai, {
             goal,
             maxAttempts: 6,
         });

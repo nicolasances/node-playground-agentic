@@ -1,22 +1,5 @@
 import { Genkit, ToolAction, z } from "genkit";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { ToolExecution } from "./types";
-
-export type ToolExecutionCallback = (execution: ToolExecution) => void;
-
-function serializeWithUndefined(value: unknown): unknown {
-    if (value === undefined) return "__undefined__";
-    if (value === null) return null;
-    if (Array.isArray(value)) return value.map((item) => serializeWithUndefined(item));
-    if (typeof value === "object") {
-        const out: Record<string, unknown> = {};
-        for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-            out[key] = serializeWithUndefined(child);
-        }
-        return out;
-    }
-    return value;
-}
 
 const toolMetadata = {
     getWeather: {
@@ -35,6 +18,8 @@ const toolMetadata = {
     },
 } as const;
 
+const nativeToolsCache = new WeakMap<Genkit, ToolAction[]>();
+
 function describeSchema(schema: z.ZodObject<any>): string {
     const jsonSchema = (zodToJsonSchema as any)(schema, {
         $refStrategy: "none",
@@ -48,33 +33,25 @@ export function describeAvailableTools(): string {
         .join("\n");
 }
 
-export function createNativeTools(ai: Genkit, onExecution: ToolExecutionCallback): ToolAction[] {
+export function describeToolNamesAndDescriptions(): string {
+    return Object.entries(toolMetadata)
+        .map(([name, def]) => `- ${name}: ${def.description}`)
+        .join("\n");
+}
+
+export function createNativeTools(ai: Genkit): ToolAction[] {
+    const cached = nativeToolsCache.get(ai);
+    if (cached) {
+        return cached;
+    }
+
     const getWeather = ai.defineTool(
         {
             name: "getWeather",
             description: toolMetadata.getWeather.description,
             inputSchema: toolMetadata.getWeather.schema,
         },
-        async (input) => {
-            const inputDebug = serializeWithUndefined(input);
-
-            let output: string;
-            try {
-                output = `The current weather in ${input.location} is sunny with a temperature of 25°C.`;
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                output = `ERROR: ${errorMessage}`;
-            }
-
-            onExecution({
-                toolName: "getWeather",
-                input,
-                inputDebug,
-                output,
-            });
-
-            return output;
-        }
+        async (input) => `The current weather in ${input.location} is sunny with a temperature of 25°C.`
     );
 
     const getCurrentDate = ai.defineTool(
@@ -83,26 +60,7 @@ export function createNativeTools(ai: Genkit, onExecution: ToolExecutionCallback
             description: toolMetadata.getCurrentDate.description,
             inputSchema: toolMetadata.getCurrentDate.schema,
         },
-        async (input) => {
-            const inputDebug = serializeWithUndefined(input);
-
-            let output: string;
-            try {
-                output = new Date().toISOString();
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                output = `ERROR: ${errorMessage}`;
-            }
-
-            onExecution({
-                toolName: "getCurrentDate",
-                input,
-                inputDebug,
-                output,
-            });
-
-            return output;
-        }
+        async () => new Date().toISOString()
     );
 
     const getSupermarketListItems = ai.defineTool(
@@ -111,27 +69,10 @@ export function createNativeTools(ai: Genkit, onExecution: ToolExecutionCallback
             description: toolMetadata.getSupermarketListItems.description,
             inputSchema: toolMetadata.getSupermarketListItems.schema,
         },
-        async (input) => {
-            const inputDebug = serializeWithUndefined(input);
-
-            let output: string;
-            try {
-                output = JSON.stringify(["Bread C", "Butter", "Leverpostej", "Bacon", "Eggs", "Greek Yogurt"]);
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                output = `ERROR: ${errorMessage}`;
-            }
-
-            onExecution({
-                toolName: "getSupermarketListItems",
-                input,
-                inputDebug,
-                output,
-            });
-
-            return output;
-        }
+        async () => JSON.stringify(["Bread C", "Butter", "Leverpostej", "Bacon", "Eggs", "Greek Yogurt"])
     );
 
-    return [getWeather, getCurrentDate, getSupermarketListItems];
+    const tools = [getWeather, getCurrentDate, getSupermarketListItems];
+    nativeToolsCache.set(ai, tools);
+    return tools;
 }

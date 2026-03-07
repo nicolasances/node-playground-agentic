@@ -4,9 +4,16 @@ This folder replicates the `agenticLoop` skeleton, but uses Genkit's native tool
 
 ## Loop shape
 
-1. **Plan+Act**: single `ai.generate` call with native Genkit tools.
-2. **Observe**: explicit logging and state update of tool execution output.
-3. **Critic**: explicit reviewer step deciding whether to continue or finish.
+1. **Plan**: create a structured plan from goal, context and available tools (name + description).
+2. **Act**: execute the first non-completed plan item using native Genkit tool-calling.
+3. **Critic (item)**: verify whether that plan item is completed; if not, retry item act.
+4. **Critic (goal)**: after item loop, verify whether the full user goal is solved.
+
+This produces nested loops:
+
+- outer loop on goal completion,
+- inner loop across plan items,
+- inner loop per item for act + item-critic retries.
 
 Hard stops:
 
@@ -16,8 +23,8 @@ Hard stops:
 ## Files
 
 - `types.ts`: loop state and decision schemas.
-- `tools.ts`: native Genkit tool definitions and execution capture.
-- `prompts.ts`: merged plan+act + explicit critic prompts.
+- `tools.ts`: native Genkit tool definitions.
+- `prompts.ts`: planner, item actor, item critic, and goal critic prompts.
 - `loop.ts`: orchestrator (`runAgenticLoopWithGenkitTools`).
 - `main.ts`: runnable CLI entrypoint.
 
