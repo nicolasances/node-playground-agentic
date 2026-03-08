@@ -16,11 +16,8 @@ export interface RunLoopInput {
     maxIterations?: number;
 }
 
-export async function runAgenticLoopWithGenkitTools(
-    ai: Genkit,
-    input: RunLoopInput
-): Promise<AgentLoopResult> {
-    
+export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopInput): Promise<AgentLoopResult> {
+
     const state: AgentLoopState = {
         goal: input.goal,
         context: input.context ?? [],
