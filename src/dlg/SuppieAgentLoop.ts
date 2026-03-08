@@ -19,7 +19,7 @@ export class SuppieAgentLoop extends TotoDelegate<SuppieAgentLoopInput, SuppieAg
         });
         const result = await runAgenticLoopWithGenkitTools(ai, {
             goal,
-            maxAttempts: 6,
+            maxIterations: 6,
         });
 
         console.log("\n=== AGENTIC LOOP RESULT ===");
@@ -27,7 +27,7 @@ export class SuppieAgentLoop extends TotoDelegate<SuppieAgentLoopInput, SuppieAg
         
         return {
             answer: result.finalAnswer, 
-            iterations: result.attempts,
+            iterations: result.state.iterations,
         }
     }
 

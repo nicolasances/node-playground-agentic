@@ -1,121 +1,94 @@
 import { Genkit } from "genkit";
-import { actOnPlanItem, createPlan, criticGoalCompletion, criticPlanItemCompletion } from "./prompts";
-import { AgentLoopResult, AgentLoopState, PlanItem } from "./types";
+import {
+    ACT_SYSTEM_PROMPT,
+    CRITIC_SYSTEM_PROMPT,
+    buildActPrompt,
+    buildCriticPrompt,
+} from "./prompts";
+import { createGenkitTools } from "./tools";
+import { AgentLoopResult, AgentLoopState, CriticDecisionSchema } from "./types";
 
 export interface RunLoopInput {
     goal: string;
     context?: string[];
-    maxAttempts?: number;
-    maxGoalIterations?: number;
-    maxItemAttempts?: number;
+    maxIterations?: number;
 }
 
-/**
- * Runs a nested agentic loop:
- * 1) Plan loop: build a plan with completion-tracked items.
- * 2) Act loop: execute first non-completed item (Genkit native tool usage).
- * 3) Critic loops: validate item completion, then validate goal completion.
- */
-export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopInput): Promise<AgentLoopResult> {
-
-    const maxGoalIterations = input.maxGoalIterations ?? input.maxAttempts ?? 4;
-    const maxTotalActs = input.maxAttempts ?? 12;
-    const maxItemAttempts = input.maxItemAttempts ?? 3;
-
+export async function runAgenticLoopWithGenkitTools(
+    ai: Genkit,
+    input: RunLoopInput
+): Promise<AgentLoopResult> {
+    
     const state: AgentLoopState = {
         goal: input.goal,
         context: input.context ?? [],
-        attempts: 0,
-        maxAttempts: maxTotalActs,
-        goalIteration: 0,
-        maxGoalIterations,
-        plan: [],
+        maxIterations: input.maxIterations ?? 6,
+        iterations: 0,
         observations: [],
+        history: [],
     };
 
-    while (state.goalIteration < state.maxGoalIterations && state.attempts < state.maxAttempts) {
-
-        const planResult = await createPlan(ai, state);
-        state.plan = planResult.items.map((item, index) => ({
-            id: index + 1,
-            title: item.title,
-            description: item.description,
-            completed: false,
-        }));
-
+    while (state.iterations < state.maxIterations) {
+        const iteration = state.iterations + 1;
         console.log(`----------------------------------------------`);
-        console.log(`Goal iteration #${state.goalIteration + 1}...`);
-        console.log(`Planning ...`);
-        console.log(`Plan created: `);
-        state.plan.forEach((item) => {
-            console.log(`  #${item.id} ${item.title} - ${item.description}`);
+        console.log(`Iteration #${iteration}`);
+
+        const actResponse = await ai.generate({
+            system: ACT_SYSTEM_PROMPT,
+            prompt: buildActPrompt(state),
+            tools: createGenkitTools(ai),
         });
-        console.log(`----------------------------------------------`);
 
-        let lastStepSummary = `Plan created with ${state.plan.length} items.`;
+        const actOutput = actResponse.text?.trim() || "";
+        console.log(`Act output: ${actOutput || "<empty>"}`);
 
-        for (const item of state.plan) {
-            let itemAttempt = 0;
-            const itemCriticObservations: string[] = [];
+        const criticResponse = await ai.generate({
+            system: CRITIC_SYSTEM_PROMPT,
+            prompt: buildCriticPrompt(state.goal, actOutput),
+            output: { schema: CriticDecisionSchema },
+        });
 
-            while (!item.completed && itemAttempt < maxItemAttempts && state.attempts < state.maxAttempts) {
-                itemAttempt += 1;
-
-                const stepSummary = await actOnPlanItem(ai, item, itemCriticObservations);
-
-                console.log(`Acting on item #${item.id} ...`);
-                console.log(`result: ${stepSummary}`);
-
-                state.attempts += 1;
-                lastStepSummary = stepSummary;
-
-                const itemReview = await criticPlanItemCompletion(ai, state, item, stepSummary);
-                const criticReasoning = itemReview.reasoning.trim();
-                itemCriticObservations.push(criticReasoning);
-                state.observations.push(`item-critic #${item.id}: ${criticReasoning}`);
-
-                if (itemReview.completed) {
-                    item.completed = true;
-                    item.completionNotes = criticReasoning;
-                    console.log(`Item #${item.id} completed.`);
-                } else {
-                    const feedback = itemReview.correctionInstruction?.trim() || criticReasoning;
-                    itemCriticObservations.push(feedback);
-                    state.observations.push(`item-feedback #${item.id}: ${feedback}`);
-                    console.log(`Item #${item.id} not completed: ${feedback}`);
-                }
-            }
-
-            if (!item.completed && state.attempts >= state.maxAttempts) {
-                break;
-            }
+        if (!criticResponse.output) {
+            throw new Error("Critic returned no structured output.");
         }
 
-        const goalReview = await criticGoalCompletion(ai, state, lastStepSummary);
-        state.observations.push(`goal-critic: ${goalReview.reasoning}`);
+        const critic = criticResponse.output;
+        console.log(`Critic fulfilled: ${critic.fulfilled}`);
+        console.log(`Critic reasoning: ${critic.reasoning}`);
 
-        console.log(`Goal review ...`);
-        console.log(`Reasoning: ${goalReview.reasoning}`);
+        state.history.push({
+            iteration,
+            actOutput,
+            criticReasoning: critic.reasoning,
+            criticFulfilled: critic.fulfilled,
+            criticObservations: critic.observations,
+        });
 
-        if (goalReview.done) {
-            const finalAnswer = goalReview.finalAnswer ?? "Goal marked as completed by critic.";
+        state.iterations += 1;
+
+        if (critic.fulfilled) {
+            const finalAnswer = critic.finalAnswer ?? (actOutput || "Goal fulfilled.");
             state.finalAnswer = finalAnswer;
-            return { done: true, finalAnswer, state, attempts: state.attempts };
+            return {
+                done: true,
+                finalAnswer,
+                state,
+            };
         }
 
-        state.goalIteration += 1;
+        const observation = critic.observations ?? "Goal not fulfilled yet.";
+        state.observations.push(observation);
     }
 
-    const timeoutAnswer = [
+    const timeout = [
         "Loop stopped before goal completion.",
-        `Last observation: ${state.observations[state.observations.length - 1] ?? "<none>"}`,
+        `Last critic observation: ${state.observations[state.observations.length - 1] ?? "<none>"}`,
     ].join(" ");
 
-    state.finalAnswer = timeoutAnswer;
+    state.finalAnswer = timeout;
     return {
         done: false,
-        finalAnswer: timeoutAnswer,
+        finalAnswer: timeout,
         state,
-        attempts: state.attempts,
     };
 }

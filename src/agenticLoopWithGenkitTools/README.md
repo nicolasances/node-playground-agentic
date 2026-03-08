@@ -1,42 +1,32 @@
-# Agentic Loop with Native Genkit Tools
+# Agentic Loop with Genkit Tools
 
-This folder replicates the `agenticLoop` skeleton, but uses Genkit's native tool-calling in the planner step.
+Minimal implementation of an Act/Critic loop.
 
-## Loop shape
+## Steps
 
-1. **Plan**: create a structured plan from goal, context and available tools (name + description).
-2. **Act**: execute the first non-completed plan item using native Genkit tool-calling.
-3. **Critic (item)**: verify whether that plan item is completed; if not, retry item act.
-4. **Critic (goal)**: after item loop, verify whether the full user goal is solved.
+1. Act: try to solve the user goal, optionally using Genkit native tools.
+2. Critic: evaluate whether the goal is fulfilled.
+3. If not fulfilled, store critic observations and run the next iteration.
+4. Stop on success or when max iterations is reached.
 
-This produces nested loops:
-
-- outer loop on goal completion,
-- inner loop across plan items,
-- inner loop per item for act + item-critic retries.
-
-Hard stops:
-
-- `maxAttempts` guard.
-- Structured output schema for the merged plan+act decision.
+No planner, no extra orchestration layers.
 
 ## Files
 
-- `types.ts`: loop state and decision schemas.
-- `tools.ts`: native Genkit tool definitions.
-- `prompts.ts`: planner, item actor, item critic, and goal critic prompts.
-- `loop.ts`: orchestrator (`runAgenticLoopWithGenkitTools`).
-- `main.ts`: runnable CLI entrypoint.
+- `tools.ts`: Genkit native tools (`ai.defineTool`).
+- `prompts.ts`: Act and Critic prompts.
+- `types.ts`: critic schema and loop state types.
+- `loop.ts`: loop orchestration.
+- `main.ts`: CLI runner.
 
 ## Run
 
-From repository root:
-
 ```bash
-npm run agentic-loop-genkit-tools -- "Find current UTC datetime and answer concisely"
+npm run agentic-loop-genkit-tools -- "Tell me today's UTC date and explain briefly how you got it"
 ```
 
 Optional env vars:
 
-- `AGENTIC_MODEL` (`amazon.nova-lite`, `amazon.nova-pro`, `anthropic.claude-3.7-sonnet`)
 - `AWS_REGION` (default: `eu-north-1`)
+- `AGENTIC_MODEL` (`amazon.nova-lite`, `amazon.nova-pro`, `anthropic.claude-3.7-sonnet`)
+- `AGENTIC_MAX_ITERATIONS` (default: `6`)
