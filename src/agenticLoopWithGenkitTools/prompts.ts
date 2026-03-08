@@ -31,6 +31,7 @@ Rules:
 - If fulfilled=true, provide finalAnswer.
 - If fulfilled=false, provide concrete observations to guide the next act attempt.
 - Be strict but practical.
+- Make sure that the previous act has not hallucinated: check the history of the agentic loop to make sure there is no unwanted alteration of the goal, context, or data.
 `;
 
 export function buildPlanPrompt(state: AgentLoopState): string {
@@ -48,9 +49,12 @@ export function buildActPrompt(instruction: string): string {
     return `PLANNER_INSTRUCTION: ${instruction}`;
 }
 
-export function buildCriticPrompt(goal: string, actOutput: string): string {
-    return [
-        `GOAL: ${goal}`,
-        `ACT_OUTPUT: ${actOutput}`,
-    ].join("\n\n");
+export function buildCriticPrompt(state: AgentLoopState, actOutput: string): string {
+    return `
+        GOAL: ${state.goal}
+        HISTORY: ${JSON.stringify(state.history)}
+        ACT_OUTPUT: ${actOutput}
+
+        Check if the act output satisfies the user goal. If not, give concrete observations to guide the next attempt.
+    `
 }

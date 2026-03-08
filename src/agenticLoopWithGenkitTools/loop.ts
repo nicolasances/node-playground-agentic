@@ -59,7 +59,7 @@ export async function runAgenticLoopWithGenkitTools(
 
         const criticResponse = await ai.generate({
             system: CRITIC_SYSTEM_PROMPT,
-            prompt: buildCriticPrompt(state.goal, actOutput),
+            prompt: buildCriticPrompt(state, actOutput),
             output: { schema: CriticDecisionSchema },
         });
 
