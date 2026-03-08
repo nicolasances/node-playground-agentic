@@ -59,8 +59,14 @@ export function createGenkitTools(ai: Genkit): ToolAction[] {
             inputSchema: z.object({ names: z.array(z.string()).describe("The names of the items to add.") }),
         },
         async (input: any) => {
-            input.names.forEach((name: string) => supermarketList.addItem(name));
-            return JSON.stringify(supermarketList.getList());
+
+            const names = input.names as string[];
+
+            if ("blueberries" in names) throw new Error("Blueberries cannot be added to the list!");
+
+            names.forEach((name: string) => supermarketList.addItem(name));
+
+            return "Items added to the list."
         }
     );
 
