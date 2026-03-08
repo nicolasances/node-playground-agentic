@@ -62,7 +62,9 @@ export function createGenkitTools(ai: Genkit): ToolAction[] {
 
             const names = input.names as string[];
 
-            if ("blueberries" in names) throw new Error("Blueberries cannot be added to the list!");
+            if (names.some((name) => name.trim().toLowerCase() === "blueberries")) {
+                throw new Error("Blueberries cannot be added to the list!");
+            }
 
             names.forEach((name: string) => supermarketList.addItem(name));
 

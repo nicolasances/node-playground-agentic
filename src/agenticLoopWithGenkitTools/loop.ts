@@ -48,13 +48,20 @@ export async function runAgenticLoopWithGenkitTools(
         const plan = planResponse.output;
         console.log(`Plan instruction: ${plan.instruction}`);
 
-        const actResponse = await ai.generate({
-            system: ACT_SYSTEM_PROMPT,
-            prompt: buildActPrompt(plan.instruction),
-            tools: createGenkitTools(ai),
-        });
+        let actOutput = "";
+        try {
+            const actResponse = await ai.generate({
+                system: ACT_SYSTEM_PROMPT,
+                prompt: buildActPrompt(plan.instruction),
+                tools: createGenkitTools(ai),
+            });
 
-        const actOutput = actResponse.text?.trim() || "";
+            actOutput = actResponse.text?.trim() || "";
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            actOutput = `ERROR: Act step failed. ${errorMessage}`;
+        }
+
         console.log(`Act output: ${actOutput || "<empty>"}`);
 
         const criticResponse = await ai.generate({
@@ -70,6 +77,7 @@ export async function runAgenticLoopWithGenkitTools(
         const critic = criticResponse.output;
         console.log(`Critic fulfilled: ${critic.fulfilled}`);
         console.log(`Critic reasoning: ${critic.reasoning}`);
+        console.log(`Critic observations: ${critic.observations}`);
 
         state.history.push({
             iteration,
