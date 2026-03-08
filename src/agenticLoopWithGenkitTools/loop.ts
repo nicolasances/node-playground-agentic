@@ -49,7 +49,7 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
         try {
             const actResponse = await ai.generate({
                 system: ACT_SYSTEM_PROMPT,
-                prompt: buildActPrompt(plan.instruction),
+                prompt: buildActPrompt(state, plan.instruction),
                 tools: createGenkitTools(ai),
             });
 

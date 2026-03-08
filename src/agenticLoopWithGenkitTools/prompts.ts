@@ -37,22 +37,31 @@ export const CRITIC_SYSTEM_PROMPT = `
 export function buildPlanPrompt(state: AgentLoopState): string {
     return `
         GOAL: ${state.goal}
+
         CONTEXT: ${state.context.join(" | ") || "<none>"}
+        
         AVAILABLE_TOOLS:\n${getAvailableToolsText()}
+        
         CRITIC_OBSERVATIONS: ${state.observations.join(" | ") || "<none>"}
 
         Give instructions to the Act agent on how to fulfill the user goal.
     `
 }
 
-export function buildActPrompt(instruction: string): string {
-    return `PLANNER_INSTRUCTION: ${instruction}`;
+export function buildActPrompt(state: AgentLoopState, instruction: string): string {
+    return `
+        GOAL: ${state.goal}
+
+        PLANNER_INSTRUCTION: ${instruction}
+    `;
 }
 
 export function buildCriticPrompt(state: AgentLoopState, actOutput: string): string {
     return `
         GOAL: ${state.goal}
+
         HISTORY: ${JSON.stringify(state.history)}
+        
         ACT_OUTPUT: ${actOutput}
 
         Check if the act output satisfies the user goal. If not, give concrete observations to guide the next attempt.
