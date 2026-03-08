@@ -1,6 +1,8 @@
 import { Genkit, ToolAction, z } from "genkit";
+import { SupermarketList } from "./supermarketList";
 
 const toolsCache = new WeakMap<Genkit, ToolAction[]>();
+const supermarketList = new SupermarketList();
 
 export function createGenkitTools(ai: Genkit): ToolAction[] {
     const cached = toolsCache.get(ai);
@@ -32,10 +34,19 @@ export function createGenkitTools(ai: Genkit): ToolAction[] {
             description: "Returns current supermarket list items.",
             inputSchema: z.object({}),
         },
-        async () => JSON.stringify(["Bread", "Butter", "Eggs", "Greek yogurt"])
+        async () => JSON.stringify(supermarketList.getList())
     );
 
-    const tools = [getCurrentDate, getWeather, getSupermarketListItems];
+    const addItesToSupermarketList = ai.defineTool(
+        {
+            name: "addItemsToSupermarketList",
+            description: "Adds one or more items to the supermarket list. ",
+            inputSchema: z.object({ names: z.array(z.string()).describe("The names of the items to add.") }),
+        },
+        async (input: any) => { input.names.forEach((name: string) => supermarketList.addItem(name)); }
+    );
+
+    const tools = [getCurrentDate, getWeather, getSupermarketListItems, addItesToSupermarketList];
     toolsCache.set(ai, tools);
     return tools;
 }

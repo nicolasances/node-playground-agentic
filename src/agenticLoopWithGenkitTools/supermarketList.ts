@@ -1,5 +1,5 @@
 export class SupermarketList {
-    private readonly items: string[] = [];
+    private readonly items: string[] = ["Bread", "Butter", "Eggs", "Greek yogurt"];
 
     getList(): string[] {
         return [...this.items];
