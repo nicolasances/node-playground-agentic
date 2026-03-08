@@ -8,6 +8,7 @@ export const PLAN_SYSTEM_PROMPT = `
     Rules:
     - Use the user goal and past critic observations.
     - Look at the tools that are available and if any is clearly useful to fulfill the user goal, specify that in the instructions.
+    - Do not invent tools that do not exist.
     - The instruction should clearly explain to the Act agent what it is supposed to do to fulfill the goal.
 `;
 
@@ -60,8 +61,8 @@ export function buildCriticPrompt(state: AgentLoopState, actOutput: string): str
     return `
         GOAL: ${state.goal}
 
-        HISTORY: ${JSON.stringify(state.history)}
-        
+        HISTORY: ${state.history.map((h) => `Iteration ${h.iteration}: plan="${h.planInstruction}", actOutput="${h.actOutput}", criticObservations="${h.criticObservations || ""}"`).join("\n") || "<none>"}
+
         ACT_OUTPUT: ${actOutput}
 
         Check if the act output satisfies the user goal. If not, give concrete observations to guide the next attempt.
