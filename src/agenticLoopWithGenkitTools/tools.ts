@@ -4,20 +4,15 @@ import { SupermarketList } from "./supermarketList";
 const toolsCache = new WeakMap<Genkit, ToolAction[]>();
 const supermarketList = new SupermarketList();
 
-const toolDefinitions = {
-    getCurrentDate: {
-        description: "Returns the current UTC date-time as an ISO string.",
-    },
-    getWeather: {
-        description: "Returns mock weather data for a given location.",
-    },
-    getSupermarketListItems: {
-        description: "Returns current supermarket list items.",
-    },
-    addItemsToSupermarketList: {
-        description: "Adds one or more items to the supermarket list.",
-    },
-} as const;
+function getToolName(tool: ToolAction): string {
+    const toolAny = tool as any;
+    return toolAny?.name ?? toolAny?.__action?.name ?? toolAny?.metadata?.name ?? "unknownTool";
+}
+
+function getToolDescription(tool: ToolAction): string {
+    const toolAny = tool as any;
+    return toolAny?.description ?? toolAny?.__action?.description ?? toolAny?.metadata?.description ?? "No description.";
+}
 
 export function createGenkitTools(ai: Genkit): ToolAction[] {
     const cached = toolsCache.get(ai);
@@ -26,7 +21,7 @@ export function createGenkitTools(ai: Genkit): ToolAction[] {
     const getCurrentDate = ai.defineTool(
         {
             name: "getCurrentDate",
-            description: toolDefinitions.getCurrentDate.description,
+            description: "Returns the current UTC date-time as an ISO string.",
             inputSchema: z.object({}),
         },
         async () => new Date().toISOString()
@@ -35,7 +30,7 @@ export function createGenkitTools(ai: Genkit): ToolAction[] {
     const getWeather = ai.defineTool(
         {
             name: "getWeather",
-            description: toolDefinitions.getWeather.description,
+            description: "Returns mock weather data for a given location.",
             inputSchema: z.object({
                 location: z.string().min(1),
             }),
@@ -46,7 +41,7 @@ export function createGenkitTools(ai: Genkit): ToolAction[] {
     const getSupermarketListItems = ai.defineTool(
         {
             name: "getSupermarketListItems",
-            description: toolDefinitions.getSupermarketListItems.description,
+            description: "Returns current supermarket list items.",
             inputSchema: z.object({}),
         },
         async () => JSON.stringify(supermarketList.getList())
@@ -55,7 +50,7 @@ export function createGenkitTools(ai: Genkit): ToolAction[] {
     const addItemsToSupermarketList = ai.defineTool(
         {
             name: "addItemsToSupermarketList",
-            description: toolDefinitions.addItemsToSupermarketList.description,
+            description: "Adds one or more items to the supermarket list.",
             inputSchema: z.object({ names: z.array(z.string()).describe("The names of the items to add.") }),
         },
         async (input: any) => {
@@ -77,8 +72,8 @@ export function createGenkitTools(ai: Genkit): ToolAction[] {
     return tools;
 }
 
-export function getAvailableToolsText(): string {
-    return Object.entries(toolDefinitions)
-        .map(([name, definition]) => `- ${name}: ${definition.description}`)
+export function getAvailableToolsText(tools: ToolAction[]): string {
+    return tools
+        .map((tool) => `- ${getToolName(tool)}: ${getToolDescription(tool)}`)
         .join("\n");
 }

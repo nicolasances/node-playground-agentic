@@ -1,5 +1,6 @@
-import { AgentLoopState } from "./types";
+import { ToolAction } from "genkit";
 import { getAvailableToolsText } from "./tools";
+import { AgentLoopState } from "./types";
 
 export const PLAN_SYSTEM_PROMPT = `
     You are the Planner agent in an agentic loop.
@@ -35,13 +36,16 @@ export const CRITIC_SYSTEM_PROMPT = `
     - Make sure that the previous act has not hallucinated: check the history of the agentic loop to make sure there is no unwanted alteration of the goal, context, or data.
 `;
 
-export function buildPlanPrompt(state: AgentLoopState): string {
+export function buildPlanPrompt(state: AgentLoopState, tools: ToolAction[]): string {
+
+    const availableToolsText = getAvailableToolsText(tools);
+    
     return `
         GOAL: ${state.goal}
 
         CONTEXT: ${state.context.join(" | ") || "<none>"}
         
-        AVAILABLE_TOOLS:\n${getAvailableToolsText()}
+        AVAILABLE_TOOLS:\n${availableToolsText}
         
         CRITIC_OBSERVATIONS: ${state.observations.join(" | ") || "<none>"}
 

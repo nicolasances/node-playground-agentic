@@ -7,7 +7,7 @@ import {
     buildActPrompt,
     buildCriticPrompt,
 } from "./prompts";
-import { createGenkitTools } from "./tools";
+import { createGenkitTools, getAvailableToolsText } from "./tools";
 import { AgentLoopResult, AgentLoopState, CriticDecisionSchema, PlanDecisionSchema } from "./types";
 
 export interface RunLoopInput {
@@ -27,14 +27,18 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
         history: [],
     };
 
+    const tools = createGenkitTools(ai);
+
     while (state.iterations < state.maxIterations) {
+
         const iteration = state.iterations + 1;
+        
         console.log(`----------------------------------------------`);
         console.log(`Iteration #${iteration}`);
 
         const planResponse = await ai.generate({
             system: PLAN_SYSTEM_PROMPT,
-            prompt: buildPlanPrompt(state),
+            prompt: buildPlanPrompt(state, tools),
             output: { schema: PlanDecisionSchema },
         });
 
@@ -43,6 +47,7 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
         }
 
         const plan = planResponse.output;
+
         console.log(`Plan instruction: ${plan.instruction}`);
 
         let actOutput = "";
@@ -50,7 +55,7 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
             const actResponse = await ai.generate({
                 system: ACT_SYSTEM_PROMPT,
                 prompt: buildActPrompt(state, plan.instruction),
-                tools: createGenkitTools(ai),
+                tools,
             });
 
             actOutput = actResponse.text?.trim() || "";
@@ -102,12 +107,13 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
         state.observations.push(observation);
     }
 
-    const timeout = [
-        "Loop stopped before goal completion.",
-        `Last critic observation: ${state.observations[state.observations.length - 1] ?? "<none>"}`,
-    ].join(" ");
+    const timeout = `
+        Loop stopped before goal completion.
+        Last critic observation: ${state.observations[state.observations.length - 1] ?? "<none>"}
+    `;
 
     state.finalAnswer = timeout;
+
     return {
         done: false,
         finalAnswer: timeout,
