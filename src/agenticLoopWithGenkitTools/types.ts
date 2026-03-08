@@ -1,5 +1,12 @@
 import { z } from "genkit";
 
+export const PlanDecisionSchema = z.object({
+    instruction: z.string().min(1),
+    reasoning: z.string(),
+});
+
+export type PlanDecision = z.infer<typeof PlanDecisionSchema>;
+
 export const CriticDecisionSchema = z.object({
     fulfilled: z.boolean(),
     observations: z.string().optional(),
@@ -27,6 +34,8 @@ export type CriticDecision = z.infer<typeof CriticDecisionSchema>;
 
 export interface LoopIteration {
     iteration: number;
+    planInstruction: string;
+    planReasoning: string;
     actOutput: string;
     criticReasoning: string;
     criticFulfilled: boolean;

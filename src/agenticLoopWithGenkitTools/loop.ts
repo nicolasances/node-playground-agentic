@@ -1,12 +1,14 @@
 import { Genkit } from "genkit";
 import {
+    PLAN_SYSTEM_PROMPT,
     ACT_SYSTEM_PROMPT,
     CRITIC_SYSTEM_PROMPT,
+    buildPlanPrompt,
     buildActPrompt,
     buildCriticPrompt,
 } from "./prompts";
 import { createGenkitTools } from "./tools";
-import { AgentLoopResult, AgentLoopState, CriticDecisionSchema } from "./types";
+import { AgentLoopResult, AgentLoopState, CriticDecisionSchema, PlanDecisionSchema } from "./types";
 
 export interface RunLoopInput {
     goal: string;
@@ -33,9 +35,22 @@ export async function runAgenticLoopWithGenkitTools(
         console.log(`----------------------------------------------`);
         console.log(`Iteration #${iteration}`);
 
+        const planResponse = await ai.generate({
+            system: PLAN_SYSTEM_PROMPT,
+            prompt: buildPlanPrompt(state),
+            output: { schema: PlanDecisionSchema },
+        });
+
+        if (!planResponse.output) {
+            throw new Error("Planner returned no structured output.");
+        }
+
+        const plan = planResponse.output;
+        console.log(`Plan instruction: ${plan.instruction}`);
+
         const actResponse = await ai.generate({
             system: ACT_SYSTEM_PROMPT,
-            prompt: buildActPrompt(state),
+            prompt: buildActPrompt(plan.instruction),
             tools: createGenkitTools(ai),
         });
 
@@ -58,6 +73,8 @@ export async function runAgenticLoopWithGenkitTools(
 
         state.history.push({
             iteration,
+            planInstruction: plan.instruction,
+            planReasoning: plan.reasoning,
             actOutput,
             criticReasoning: critic.reasoning,
             criticFulfilled: critic.fulfilled,

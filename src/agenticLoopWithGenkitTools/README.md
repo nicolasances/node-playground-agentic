@@ -1,20 +1,21 @@
 # Agentic Loop with Genkit Tools
 
-Minimal implementation of an Act/Critic loop.
+Minimal implementation of a Plan/Act/Critic loop.
 
 ## Steps
 
-1. Act: try to solve the user goal, optionally using Genkit native tools.
-2. Critic: evaluate whether the goal is fulfilled.
-3. If not fulfilled, store critic observations and run the next iteration.
-4. Stop on success or when max iterations is reached.
+1. Plan: look at user goal + past critic observations and produce one instruction for Act.
+2. Act: execute that instruction, optionally using Genkit native tools.
+3. Critic: evaluate whether the goal is fulfilled.
+4. If not fulfilled, store critic observations and run the next iteration.
+5. Stop on success or when max iterations is reached.
 
-No planner, no extra orchestration layers.
+The planner only receives tool names and descriptions (no input schemas) to keep prompt context small.
 
 ## Files
 
 - `tools.ts`: Genkit native tools (`ai.defineTool`).
-- `prompts.ts`: Act and Critic prompts.
+- `prompts.ts`: Plan, Act and Critic prompts.
 - `types.ts`: critic schema and loop state types.
 - `loop.ts`: loop orchestration.
 - `main.ts`: CLI runner.
