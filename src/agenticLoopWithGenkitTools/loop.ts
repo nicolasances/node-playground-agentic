@@ -7,8 +7,9 @@ import {
     buildActPrompt,
     buildCriticPrompt,
 } from "./prompts";
-import { createGenkitTools, getAvailableToolsText } from "./tools";
+import { createGenkitTools } from "./tools";
 import { AgentLoopResult, AgentLoopState, CriticDecisionSchema, PlanDecisionSchema } from "./types";
+import { Logger } from "totoms";
 
 export interface RunLoopInput {
     goal: string;
@@ -17,6 +18,8 @@ export interface RunLoopInput {
 }
 
 export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopInput): Promise<AgentLoopResult> {
+
+    const logger = Logger.getInstance();
 
     const state: AgentLoopState = {
         goal: input.goal,
@@ -32,9 +35,9 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
     while (state.iterations < state.maxIterations) {
 
         const iteration = state.iterations + 1;
-        
-        console.log(`----------------------------------------------`);
-        console.log(`Iteration #${iteration}`);
+
+        logger.compute("AGENTIC_LOOP", "----------------------------------------------");
+        logger.compute("AGENTIC_LOOP", `Iteration #${iteration}`);
 
         const planResponse = await ai.generate({
             system: PLAN_SYSTEM_PROMPT,
@@ -48,7 +51,7 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
 
         const plan = planResponse.output;
 
-        console.log(`Plan instruction: ${plan.instruction}`);
+        logger.compute("AGENTIC_LOOP", `Plan instruction: ${plan.instruction}`);
 
         let actOutput = "";
         try {
@@ -64,7 +67,7 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
             actOutput = `ERROR: Act step failed. ${errorMessage}`;
         }
 
-        console.log(`Act output: ${actOutput || "<empty>"}`);
+        logger.compute("AGENTIC_LOOP", `Act output: ${actOutput || "<empty>"}`);
 
         const criticResponse = await ai.generate({
             system: CRITIC_SYSTEM_PROMPT,
@@ -77,9 +80,9 @@ export async function runAgenticLoopWithGenkitTools(ai: Genkit, input: RunLoopIn
         }
 
         const critic = criticResponse.output;
-        console.log(`Critic fulfilled: ${critic.fulfilled}`);
-        console.log(`Critic reasoning: ${critic.reasoning}`);
-        console.log(`Critic observations: ${critic.observations}`);
+        logger.compute("AGENTIC_LOOP", `Critic fulfilled: ${critic.fulfilled}`);
+        logger.compute("AGENTIC_LOOP", `Critic reasoning: ${critic.reasoning}`);
+        logger.compute("AGENTIC_LOOP", `Critic observations: ${critic.observations}`);
 
         state.history.push({
             iteration,
