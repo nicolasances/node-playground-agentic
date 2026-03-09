@@ -4,16 +4,6 @@ import { SupermarketList } from "./supermarketList";
 const toolsCache = new WeakMap<Genkit, ToolAction[]>();
 const supermarketList = new SupermarketList();
 
-function getToolName(tool: ToolAction): string {
-    const toolAny = tool as any;
-    return toolAny?.name ?? toolAny?.__action?.name ?? toolAny?.metadata?.name ?? "unknownTool";
-}
-
-function getToolDescription(tool: ToolAction): string {
-    const toolAny = tool as any;
-    return toolAny?.description ?? toolAny?.__action?.description ?? toolAny?.metadata?.description ?? "No description.";
-}
-
 export function createGenkitTools(ai: Genkit): ToolAction[] {
     const cached = toolsCache.get(ai);
     if (cached) return cached;
@@ -72,8 +62,3 @@ export function createGenkitTools(ai: Genkit): ToolAction[] {
     return tools;
 }
 
-export function getAvailableToolsText(tools: ToolAction[]): string {
-    return tools
-        .map((tool) => `- ${getToolName(tool)}: ${getToolDescription(tool)}`)
-        .join("\n");
-}
