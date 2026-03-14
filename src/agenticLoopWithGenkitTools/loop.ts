@@ -8,7 +8,6 @@ import {
     buildActPrompt,
     buildCriticPrompt,
 } from "./prompts";
-import { createGenkitTools, getAvailableToolsText } from "./tools";
 import { AgentLoopResult, AgentLoopState, CriticDecisionSchema, PlanDecisionSchema } from "./types";
 import { ToolAction } from "genkit";
 import { Logger } from "totoms";
@@ -23,21 +22,29 @@ export interface AgenticLoopOptions {
     correlationId?: string;
 }
 
+/**
+ * Class that orchestrates the Agentic loop.
+ */
 export class AgenticLoop {
+
     private readonly ai: Genkit;
     private readonly tools: ToolAction[];
     private readonly correlationId: string;
-    private readonly logger = Logger.getInstance();
+    private readonly logger: Logger;
 
     constructor({ ai, tools, correlationId }: { ai: Genkit; tools: ToolAction[]; correlationId?: string }) {
         this.ai = ai;
         this.tools = tools;
         this.correlationId = correlationId ?? uuidv4();
+        this.logger = Logger.getInstance();
     }
 
+    /**
+     * Run the loop
+     */
     async loop(input: RunLoopInput): Promise<AgentLoopResult> {
 
-        const availableToolsText = getAvailableToolsText(this.tools);
+        const availableToolsText = describeTools(this.tools);
 
         const state: AgentLoopState = {
             goal: input.goal,
@@ -139,4 +146,29 @@ export class AgenticLoop {
             state,
         };
     }
+}
+
+
+/**
+ * Produces a human-readable description of the available tools, made for the AI to understand what tools it can use and how to use them.
+ * 
+ * @param tools The list of tools to describe.
+ * 
+ * @returns A string describing the available tools.
+ */
+export function describeTools(tools: ToolAction[]): string {
+
+    function getToolName(tool: ToolAction): string {
+        const toolAny = tool as any;
+        return toolAny?.name ?? toolAny?.__action?.name ?? toolAny?.metadata?.name ?? "unknownTool";
+    }
+
+    function getToolDescription(tool: ToolAction): string {
+        const toolAny = tool as any;
+        return toolAny?.description ?? toolAny?.__action?.description ?? toolAny?.metadata?.description ?? "No description.";
+    }
+
+    return tools
+        .map((tool) => `- ${getToolName(tool)}: ${getToolDescription(tool)}`)
+        .join("\n");
 }
